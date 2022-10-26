@@ -12,8 +12,13 @@ namespace uf_robot_hardware
 {
     static const rclcpp::Logger LOGGER = rclcpp::get_logger("UFACTORY.RobotFakeHW");
 
-    hardware_interface::return_type UFRobotFakeSystemHardware::configure(const hardware_interface::HardwareInfo & info)
+    hardware_interface::CallbackReturn UFRobotFakeSystemHardware::on_init(const hardware_interface::HardwareInfo & info)
     {
+        if (hardware_interface::SystemInterface::on_init(info) != CallbackReturn::SUCCESS)
+        {
+            return CallbackReturn::ERROR;
+        }
+
         info_ = info;
 
         node_ = rclcpp::Node::make_shared("uf_robot_fake_hw");
@@ -49,7 +54,7 @@ namespace uf_robot_hardware
                 RCLCPP_ERROR(LOGGER, "Joint '%s' has %d command interfaces found, but not found %s command interface",
                     joint.name.c_str(), joint.command_interfaces.size(), hardware_interface::HW_IF_POSITION
                 );
-                return hardware_interface::return_type::ERROR;
+                return CallbackReturn::ERROR;
             }
 
             bool has_pos_state_interface = false;
@@ -63,13 +68,12 @@ namespace uf_robot_hardware
                 RCLCPP_ERROR(LOGGER, "Joint '%s' has %d state interfaces found, but not found %s state interface",
                     joint.name.c_str(), joint.state_interfaces.size(), hardware_interface::HW_IF_POSITION
                 );
-                return hardware_interface::return_type::ERROR;
+                return CallbackReturn::ERROR;
             }
         }
 
         RCLCPP_INFO(LOGGER, "System Sucessfully configured!");
-        status_ = hardware_interface::status::CONFIGURED;
-        return hardware_interface::return_type::OK;
+        return CallbackReturn::SUCCESS;
     }
 
     std::vector<hardware_interface::StateInterface> UFRobotFakeSystemHardware::export_state_interfaces()
@@ -98,32 +102,29 @@ namespace uf_robot_hardware
         return command_interfaces;
     }
 
-    hardware_interface::return_type UFRobotFakeSystemHardware::start()
+    hardware_interface::CallbackReturn  UFRobotFakeSystemHardware::on_activate(const rclcpp_lifecycle::State & previous_state)
     {
-        status_ = hardware_interface::status::STARTED;
         
         RCLCPP_INFO(LOGGER, "System Sucessfully started!");
-        return hardware_interface::return_type::OK;
+        return CallbackReturn::SUCCESS;
     }
 
-    hardware_interface::return_type UFRobotFakeSystemHardware::stop()
+    hardware_interface::CallbackReturn  UFRobotFakeSystemHardware::on_deactivate(const rclcpp_lifecycle::State & previous_state)
     {
         RCLCPP_INFO(LOGGER, "Stopping ...please wait...");
-        status_ = hardware_interface::status::STOPPED;
-
 
         RCLCPP_INFO(LOGGER, "System sucessfully stopped!");
-        return hardware_interface::return_type::OK;
+        return CallbackReturn::SUCCESS;
     }
 
-    hardware_interface::return_type UFRobotFakeSystemHardware::read()
+    hardware_interface::return_type UFRobotFakeSystemHardware::read(const rclcpp::Time & time, const rclcpp::Duration & period)
     {
         joint_state_msg_.header.stamp = node_->get_clock()->now();
         joint_state_pub_->publish(joint_state_msg_);
         return hardware_interface::return_type::OK;
     }
 
-    hardware_interface::return_type UFRobotFakeSystemHardware::write()
+    hardware_interface::return_type UFRobotFakeSystemHardware::write(const rclcpp::Time & time, const rclcpp::Duration & period)
     {
         // std::string pos_str = "[ ";
         // std::string vel_str = "[ ";

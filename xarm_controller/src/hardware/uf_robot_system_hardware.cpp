@@ -155,8 +155,13 @@ namespace uf_robot_hardware
         xarm_driver_.init(node_, robot_ip_);
     }
 
-    hardware_interface::return_type UFRobotSystemHardware::configure(const hardware_interface::HardwareInfo & info)
+    hardware_interface::CallbackReturn  UFRobotSystemHardware::on_init(const hardware_interface::HardwareInfo & info)
     {
+        if (hardware_interface::SystemInterface::on_init(info) != CallbackReturn::SUCCESS)
+        {
+            return CallbackReturn::ERROR;
+        }
+
         info_ = info;
         velocity_control_ = false;
         read_code_ = 0;
@@ -189,7 +194,7 @@ namespace uf_robot_hardware
                 RCLCPP_ERROR(LOGGER, "[%s] Joint '%s' has %d command interfaces found, but not found %s command interface",
                     robot_ip_.c_str(), joint.name.c_str(), joint.command_interfaces.size(), hardware_interface::HW_IF_POSITION
                 );
-                return hardware_interface::return_type::ERROR;
+                return CallbackReturn::ERROR;
             }
 
             bool has_pos_state_interface = false;
@@ -203,13 +208,12 @@ namespace uf_robot_hardware
                 RCLCPP_ERROR(LOGGER, "[%s] Joint '%s' has %d state interfaces found, but not found %s state interface",
                     robot_ip_.c_str(), joint.name.c_str(), joint.state_interfaces.size(), hardware_interface::HW_IF_POSITION
                 );
-                return hardware_interface::return_type::ERROR;
+                return CallbackReturn::ERROR;
             }
         }
 
         RCLCPP_INFO(LOGGER, "[%s] System Sucessfully configured!", robot_ip_.c_str());
-        status_ = hardware_interface::status::CONFIGURED;
-        return hardware_interface::return_type::OK;
+        return CallbackReturn::SUCCESS;
     }
 
     std::vector<hardware_interface::StateInterface> UFRobotSystemHardware::export_state_interfaces()
@@ -238,7 +242,7 @@ namespace uf_robot_hardware
         return command_interfaces;
     }
 
-    hardware_interface::return_type UFRobotSystemHardware::start()
+    hardware_interface::CallbackReturn  UFRobotSystemHardware::on_activate(const rclcpp_lifecycle::State & previous_state)
     {
         xarm_driver_.arm->motion_enable(true);
 		xarm_driver_.arm->set_mode(velocity_control_ ? XARM_MODE::VELO_JOINT : XARM_MODE::SERVO);
@@ -268,22 +272,19 @@ namespace uf_robot_hardware
                 velocity_cmds_[i] = velocity_states_[i];
             }
         }
-
-        status_ = hardware_interface::status::STARTED;
-        
+       
         RCLCPP_INFO(LOGGER, "[%s] System Sucessfully started!", robot_ip_.c_str());
-        return hardware_interface::return_type::OK;
+        return CallbackReturn::SUCCESS;
     }
 
-    hardware_interface::return_type UFRobotSystemHardware::stop()
+    hardware_interface::CallbackReturn  UFRobotSystemHardware::on_deactivate(const rclcpp_lifecycle::State & previous_state)
     {
         RCLCPP_INFO(LOGGER, "[%s] Stopping ...please wait...", robot_ip_.c_str());
-        status_ = hardware_interface::status::STOPPED;
 
         xarm_driver_.arm->set_mode(XARM_MODE::POSE);
 
         RCLCPP_INFO(LOGGER, "[%s] System sucessfully stopped!", robot_ip_.c_str());
-        return hardware_interface::return_type::OK;
+        return CallbackReturn::SUCCESS;
     }
 
     void UFRobotSystemHardware::_reload_controller(void) {
@@ -303,7 +304,7 @@ namespace uf_robot_hardware
         }
     }
 
-    hardware_interface::return_type UFRobotSystemHardware::read()
+    hardware_interface::return_type  UFRobotSystemHardware::read(const rclcpp::Time & time, const rclcpp::Duration & period)
     {
         read_cnts_ += 1;
         read_ready_ = _xarm_is_ready_read();
@@ -365,7 +366,7 @@ namespace uf_robot_hardware
         return hardware_interface::return_type::OK;
     }
 
-    hardware_interface::return_type UFRobotSystemHardware::write()
+    hardware_interface::return_type  UFRobotSystemHardware::write(const rclcpp::Time & time, const rclcpp::Duration & period)
     {
         if (_need_reset()) {
             if (initialized_) reload_controller_ = true;
